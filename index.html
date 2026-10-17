@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Estimador de pedidos de kits de robótica</title>
+  <link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+<main class="tarjeta">
+  <header>
+    <p class="etiqueta">Tienda educativa · Planificación semanal</p>
+    <h1>Estimador de pedidos de kits de robótica</h1>
+    <p class="sub">Ingresa los datos previstos de la semana y obtén una estimación de pedidos.</p>
+  </header>
+
+  <div class="error" id="errores" role="alert" hidden>
+    <strong>Revisa los datos:</strong>
+    <ul id="lista-errores"></ul>
+  </div>
+
+  <form id="formulario" novalidate>
+    <label for="consultas_web">Consultas web <span>(entre 5 y 70 por semana)</span></label>
+    <input id="consultas_web" type="number" step="1" min="5" max="70" placeholder="Ej.: 20" required>
+
+    <label for="inversion_publicidad_soles">Inversión en publicidad <span>(S/ 0 a S/ 1100)</span></label>
+    <input id="inversion_publicidad_soles" type="number" step="any" min="0" max="1100" placeholder="Ej.: 200" required>
+
+    <label for="campana_escolar">Campaña escolar activa</label>
+    <select id="campana_escolar">
+      <option value="0">No (0)</option>
+      <option value="1">Sí (1)</option>
+    </select>
+    <button type="submit">Calcular</button>
+  </form>
+
+  <section class="resultado" id="resultado" aria-live="polite" hidden>
+    <p class="mini">Pedidos estimados para la semana</p>
+    <p class="numero"><span id="r-pedidos"></span> <span>kits</span></p>
+    <p class="rango">Rango razonable: <span id="r-min"></span> a <span id="r-max"></span> kits
+      <small>(valor exacto del modelo: <span id="r-exacto"></span>)</small></p>
+  </section>
+
+  <p class="aviso">⚠ Es solo una <strong>estimación</strong> basada en datos simulados de 110 semanas.
+    El error típico en pruebas fue de ±3.0 pedidos (R² = 0.79).
+    No la uses como única base para comprar stock; no es válida fuera de los rangos indicados.</p>
+</main>
+
+<script>
+// Coeficientes de la regresión lineal (los mismos de modelo.json)
+const MODELO = {
+  "columnas": [
+    "consultas_web",
+    "inversion_publicidad_soles",
+    "campana_escolar"
+  ],
+  "intercepto": 1.5384729585592574,
+  "coeficientes": {
+    "consultas_web": 0.3463033562740661,
+    "inversion_publicidad_soles": 0.006699109182241925,
+    "campana_escolar": 5.018213367145449
+  },
+  "rangos": {
+    "consultas_web": [
+      5,
+      70
+    ],
+    "inversion_publicidad_soles": [
+      0,
+      1100
+    ],
+    "campana_escolar": [
+      0,
+      1
+    ]
+  },
+  "metricas_prueba": {
+    "mae": 2.954102420565232,
+    "r2": 0.7910735136647091
+  }
+};
+
+const CAMPOS = {
+  consultas_web: "Consultas web",
+  inversion_publicidad_soles: "Inversión en publicidad (S/)",
+  campana_escolar: "Campaña escolar"
+};
+
+const form = document.getElementById("formulario");
+const cajaErrores = document.getElementById("errores");
+const listaErrores = document.getElementById("lista-errores");
+const cajaResultado = document.getElementById("resultado");
+
+function validar() {
+  const valores = {}, errores = [];
+  for (const [campo, etiqueta] of Object.entries(CAMPOS)) {
+    const bruto = document.getElementById(campo).value.trim().replace(",", ".");
+    const [min, max] = MODELO.rangos[campo];
+    const numero = Number(bruto);
+    if (bruto === "" || !Number.isFinite(numero)) {
+      errores.push(etiqueta + ": escribe un número válido.");
+    } else if (numero < min || numero > max) {
+      errores.push(etiqueta + ": debe estar entre " + min + " y " + max + ".");
+    } else if (campo === "campana_escolar" && numero !== 0 && numero !== 1) {
+      errores.push(etiqueta + ": debe ser 0 o 1.");
+    } else {
+      valores[campo] = numero;
+    }
+  }
+  return { valores, errores };
+}
+
+function predecir(valores) {
+  let y = MODELO.intercepto;
+  for (const c of MODELO.columnas) y += MODELO.coeficientes[c] * valores[c];
+  return Math.max(0, y);
+}
+
+form.addEventListener("submit", function (e) {
+  e.preventDefault();
+  const { valores, errores } = validar();
+  listaErrores.innerHTML = "";
+  if (errores.length) {
+    errores.forEach(function (m) {
+      const li = document.createElement("li");
+      li.textContent = m;
+      listaErrores.appendChild(li);
+    });
+    cajaErrores.hidden = false;
+    cajaResultado.hidden = true;
+    return;
+  }
+  cajaErrores.hidden = true;
+  const y = predecir(valores), mae = MODELO.metricas_prueba.mae;
+  document.getElementById("r-pedidos").textContent = Math.round(y);
+  document.getElementById("r-min").textContent = Math.max(0, Math.round(y - mae));
+  document.getElementById("r-max").textContent = Math.round(y + mae);
+  document.getElementById("r-exacto").textContent = y.toFixed(1);
+  cajaResultado.hidden = false;
+});
+</script>
+</body>
+</html>

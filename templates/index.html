@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Estimador de pedidos de kits de robótica</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='estilos.css') }}">
+</head>
+<body>
+<main class="tarjeta">
+  <header>
+    <p class="etiqueta">Tienda educativa · Planificación semanal</p>
+    <h1>Estimador de pedidos de kits de robótica</h1>
+    <p class="sub">Ingresa los datos previstos de la semana y obtén una estimación de pedidos.</p>
+  </header>
+
+  {% if errores %}
+  <div class="error" role="alert">
+    <strong>Revisa los datos:</strong>
+    <ul>{% for e in errores %}<li>{{ e }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+
+  <form method="post" action="/">
+    <label for="consultas_web">Consultas web <span>(entre {{ rangos.consultas_web[0] }} y {{ rangos.consultas_web[1] }} por semana)</span></label>
+    <input id="consultas_web" name="consultas_web" type="number" step="1"
+           min="{{ rangos.consultas_web[0] }}" max="{{ rangos.consultas_web[1] }}"
+           value="{{ valores.consultas_web or '' }}" placeholder="Ej.: 20" required>
+
+    <label for="inversion_publicidad_soles">Inversión en publicidad <span>(S/ {{ rangos.inversion_publicidad_soles[0] }} a S/ {{ rangos.inversion_publicidad_soles[1] }})</span></label>
+    <input id="inversion_publicidad_soles" name="inversion_publicidad_soles" type="number" step="any"
+           min="{{ rangos.inversion_publicidad_soles[0] }}" max="{{ rangos.inversion_publicidad_soles[1] }}"
+           value="{{ valores.inversion_publicidad_soles or '' }}" placeholder="Ej.: 200" required>
+
+    <label for="campana_escolar">Campaña escolar activa</label>
+    <select id="campana_escolar" name="campana_escolar" required>
+      <option value="0" {% if valores.campana_escolar == '0' %}selected{% endif %}>No (0)</option>
+      <option value="1" {% if valores.campana_escolar == '1' %}selected{% endif %}>Sí (1)</option>
+    </select>
+
+    <button type="submit">Calcular</button>
+  </form>
+
+  {% if resultado %}
+  <section class="resultado" aria-live="polite">
+    <p class="mini">Pedidos estimados para la semana</p>
+    <p class="numero">{{ resultado.pedidos }} <span>kits</span></p>
+    <p class="rango">Rango razonable: {{ resultado.minimo }} a {{ resultado.maximo }} kits
+      <small>(valor exacto del modelo: {{ resultado.exacto }})</small></p>
+  </section>
+  {% endif %}
+
+  <p class="aviso">⚠ Es solo una <strong>estimación</strong> basada en datos simulados de 110 semanas.
+    El error típico en pruebas fue de ±{{ '%.1f'|format(metricas.mae) }} pedidos (R² = {{ '%.2f'|format(metricas.r2) }}).
+    No la uses como única base para comprar stock; no es válida fuera de los rangos indicados.</p>
+</main>
+</body>
+</html>
